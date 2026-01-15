@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>產品打卡系統</title>
+    <style>
+        body { font-family: 'PingFang TC', sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; padding: 20px; }
+        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+        h2 { color: #1a73e8; }
+        input, select, button { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; }
+        button { background-color: #1a73e8; color: white; border: none; cursor: pointer; font-weight: bold; }
+        button:disabled { background-color: #ccc; }
+        #preview { width: 100%; border-radius: 10px; margin-top: 10px; display: none; }
+        #status { margin-top: 20px; text-align: left; font-size: 14px; white-space: pre-wrap; }
+        .loader { display: none; color: #1a73e8; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>📸 產品打卡系統</h2>
+    <input type="text" id="displayName" placeholder="您的暱稱">
+    <input type="text" id="userId" placeholder="LINE ID / 手機號碼">
+    
+    <select id="category">
+        <option value="regular">👶 一般產品打卡</option>
+        <option value="event">🔥 活動限定 (益生菌)</option>
+        <option value="trial">🎁 上線截圖活動</option>
+    </select>
+
+    <input type="file" id="imageInput" accept="image/*">
+    <img id="preview">
+    
+    <button id="uploadBtn">提交打卡資料</button>
+    <div id="loader" class="loader">⏳ AI 辨識中，請稍候...</div>
+    <div id="status"></div>
+</div>
+
+<script>
+    const GAS_URL = "您的_GAS_網址"; // 🔴 請在這裡填入您的 GAS 部署網址
+
+    const imageInput = document.getElementById('imageInput');
+    const preview = document.getElementById('preview');
+    const uploadBtn = document.getElementById('uploadBtn');
+
+    imageInput.onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => { preview.src = e.target.result; preview.style.display = 'block'; };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    uploadBtn.onclick = async () => {
+        const userId = document.getElementById('userId').value;
+        const displayName = document.getElementById('displayName').value;
+        const category = document.getElementById('category').value;
+        const file = imageInput.files[0];
+
+        if (!userId || !file) return alert("請填寫 ID 並選擇圖片");
+
+        uploadBtn.disabled = true;
+        document.getElementById('loader').style.display = 'block';
+        document.getElementById('status').innerText = "";
+
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = async () => {
+            try {
+                const response = await fetch(GAS_URL, {
+                    method: "POST",
+                    body: JSON.stringify({
+                        userId, displayName, category,
+                        image: reader.result
+                    })
+                });
+                const res = await response.json();
+                if (res.status === "SUCCESS") {
+                    document.getElementById('status').innerHTML = `✅ 成功！\n新增點數：${res.added}\n總點數：${res.current.total}`;
+                } else {
+                    document.getElementById('status').innerText = `❌ 失敗：${res.message}`;
+                }
+            } catch (err) {
+                document.getElementById('status').innerText = "連線失敗，請檢查網址或權限";
+            } finally {
+                uploadBtn.disabled = false;
+                document.getElementById('loader').style.display = 'none';
+            }
+        };
+    };
+</script>
+
+</body>
+</html>
